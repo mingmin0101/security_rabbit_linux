@@ -6,3 +6,5 @@ djangorestgramework==3.10.1
 django-cors-headers==3.0.2
 pefile
 Faker==2.0.1
+django-sslserver==0.21
+Orange3==3.23.1

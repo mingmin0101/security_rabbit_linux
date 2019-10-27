@@ -29,26 +29,21 @@ from rest_framework.decorators import api_view
 
 # Create your views here.
 class FileUploadView(APIView):
-    parser_class = (MultiPartParser,FormParser)
+    parser_class = (FileUploadParser,MultiPartParser,FormParser)
 
     def post(self, request, *args, **kwargs):
-      print("post!")
-      print(request.content_type)
-      #print(request.POST)
-      try:
-        print(request.data)
-      except:
-        pass
-      
+      #print("post!")
+      #print(request.content_type)
+      #print(request.POST)      
       file_serializer = FileSerializer(data=request.data)
     
-      if file_serializer.is_valid(raise_exception=True):
-          print("valid")
+      if file_serializer.is_valid():
+          # print("valid")
           # 將檔案存下來
           file_serializer.save()
           file_id = file_serializer.data['id']
           file_path = os.path.join(settings.MEDIA_ROOT,file_serializer.data['file'])
-          print("sent task")
+          # print("sent task")
           # 打開檔案蒐集特徵
           file_info.delay(file_path, file_id)
           #time.sleep(5)
@@ -65,10 +60,8 @@ class FileUploadView(APIView):
                 sha1.update(chunk)
 
           h = sha1.hexdigest()
-          print(h + "_" + str(file_id))
-          # 運算完刪除DB檔案紀錄、刪除media裡面的檔案    delete()      拒絕存取 可能再另外刪
-          # File.objects.get(id=file_id).delete()
-          
+          # print(h + "_" + str(file_id))
+                    
           # 回傳特徵、分數
           # time.sleep(3)
           
@@ -82,14 +75,16 @@ class FileUploadView(APIView):
 def FileResultView(request, hashValue, idValue):
     try:
         file_serializer = FileInfoSerializer(FileInfo.objects.filter(file_hash_sha1=hashValue).filter(upload_id=idValue), many=True)   # 
-        return Response(file_serializer.data, status=status.HTTP_200_OK)
+        retrieve_data = file_serializer.data
+        File.objects.get(id=idValue).delete()
+        return Response(retrieve_data, status=status.HTTP_200_OK)
 
     except FileInfo.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
 
 class FileUploadAndResultView(APIView):
-    parser_class = (FileUploadParser,)
+    parser_class = (FileUploadParser,MultiPartParser,FormParser)
 
     def post(self, request, *args, **kwargs):
 

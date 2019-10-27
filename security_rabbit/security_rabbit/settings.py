@@ -47,7 +47,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',   # login, logout
     'corsheaders',  # Cross Origin Resource Sharing (for frontend)
-    # 'django_celery_results',
+    
+    'sslserver',
 
     #'rest_auth',
     #'django.contrib.sites',  # 不知道是誰要用的
@@ -159,6 +160,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR,'media')
 # MEDIA_URL='/media/'
 MEDIA_URL=''
 
-
-
 CELERY_BROKER_URL = 'amqp://celery:password123@140.119.19.21:5672/my_vhost'
+
+# https
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+DECURE_SSL_REDIRECT = True
+ESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
+
+

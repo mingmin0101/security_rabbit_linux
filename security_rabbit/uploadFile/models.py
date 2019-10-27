@@ -27,7 +27,7 @@ class FileInfo(models.Model):
     file_size = models.IntegerField(blank=True, null=True)
     # file_magic = models.CharField(max_length=100,blank=True, null=True)
     # file_state = models.IntegerField(blank=True, null=True)
-    peutils_packed = models.CharField(max_length=200, blank=True)
+    peutils_packed = models.CharField(max_length=200, blank=True, default=[])
     entropy = models.DecimalField(max_digits=5, decimal_places=4, blank=True, null=True)
 
     create_time = models.CharField(max_length=30,blank=True)
@@ -54,7 +54,7 @@ class FileInfo(models.Model):
     pe_characteristics = models.IntegerField(blank=True, null=True)
     pe_entryPoint = models.IntegerField(blank=True, null=True)
 
-    pe_sections = models.TextField(blank=True)
+    pe_sections = models.TextField(blank=True, default=[])
 
     pe_imports = models.TextField(blank=True, default={})
 
@@ -78,22 +78,24 @@ class FileInfo(models.Model):
     def signer_dic(self):
         return eval(self.signer)
 
-
     def counter_signer_dic(self):
         return eval(self.counter_signer)
-
 
     def machine(self):
         dictOfWords = {0:'UNKNOWN', 467:'AM33', 34404:'AMD64', 448:'ARM', 43620:'ARM64', 452:'ARMNT', 3772:'EBC', 332:'I386', 512:'IA64', 36929:'M32R', 614:'MIPS16', 870:'MIPSFPU', 1126:'MIPSFPU16', 496:'POWERPC', 497:'POWERPCFP', 358:'R4000', 20530:'RISCV32', 20580:'RISCV64', 20776:'RISCV128', 418:'SH3', 419:'SH3DSP', 422:'SH4', 424:'SH5', 450:'THUMB', 361:'WCEMIPSV2'}
         for (key, value) in dictOfWords.items():
             if (key == self.pe_machine):
-                return value 
+                return value
+            else:
+                return key
         
     def characteristics(self):
         dictOfWords = {1:'RELOCS STRIPPED', 2:'EXECUTABLE IMAGE', 4:'LINE NUMS STRIPPED', 8:'LOCAL SYMS STRIPPED', 16:'AGGRESSIVE WS TRIM', 32:'LARGE ADDRESS AWARE', 128:'BYTES REVERSED LO', 256:'32BIT MACHINE', 512:'DEBUG STRIPPED', 1024:'REMOVABLE RUN FROM SWAP', 2048:'NET RUN FROM SWAP', 4096:'SYSTEM', 8192:'DLL', 16384:'UP SYSTEM ONLY', 32768:'BYTES REVERSED HI'}
         for (key, value) in dictOfWords.items():
             if (key == self.pe_characteristics):
-                return value 
+                return value
+            else:
+                return key
         
     def sections(self):
         return eval(self.pe_sections)

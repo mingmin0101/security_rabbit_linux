@@ -9,13 +9,14 @@ import peutils
 import subprocess
 import platform
 import time
-# import win32api
+#import win32api
 import string
 import math
 import hashlib
 import io
 import re
 # from winmagic import magic
+
 
 from django.conf import settings
 from uploadFile.models import FileInfo, File
@@ -30,11 +31,11 @@ def file_info(filepath, upload_id):
     last_modified = time.ctime(os.path.getmtime(filepath))   # modified time
     last_accessed = time.ctime(os.path.getatime(filepath))   # access time
     file_size = os.stat(filepath).st_size
-    #file_attribute = win32api.GetFileAttributes(filepath)
+   # file_attribute = win32api.GetFileAttributes(filepath)
     file_info_dict = {
         'file_name':filepath.split('/')[-1],
         'file_size':file_size,
-        #'file_attribute':file_attribute,
+       # 'file_attribute':file_attribute,
         'created':created,
         'last_modified':last_modified,
         'last_accessed':last_accessed
@@ -42,8 +43,8 @@ def file_info(filepath, upload_id):
     }
 
     #sigcheck.exe output to dict
-    #sigcheck_dict = sigcheck(filepath)
-    #file_info_dict.update(sigcheck_dict)
+    sigcheck_dict = sigcheck(filepath.split('/')[-1])
+    file_info_dict.update(sigcheck_dict)
     # BYTEWISE ANALYSIS
     byte_analysis_dict = byte_analysis(filepath)
     file_info_dict.update(byte_analysis_dict)
@@ -66,16 +67,20 @@ def file_info(filepath, upload_id):
     file.file_name = filepath.split('/')[-1]
     file.file_hash_sha1 = file_info_dict['file_sha1']
     file.file_size = os.stat(filepath).st_size
-    #file.file_magic = str(magic.from_file(filepath))                          # 劉的版本少這個
+    #file.file_magic = str(magic.from_file(filepath)) 
     #file.file_state = win32api.GetFileAttributes(filepath)
-    file.peutils_packed = str(file_info_dict['pack'])
-    file.entropy = file_info_dict['entropy']
+    
+    try:
+        file.peutils_packed = str(file_info_dict['pack'])
+        file.entropy = file_info_dict['entropy']
+    except:
+        pass
     file.create_time = str(time.ctime(os.path.getctime(filepath)))
     file.modified_time = str(time.ctime(os.path.getmtime(filepath)))
     file.accessed_time = str(time.ctime(os.path.getatime(filepath)))
-    
-    #file.signature_verification = str(file_info_dict['sigcheck_Verified'])
     try:
+        file.signature_verification = str(file_info_dict['sigcheck_Verified'])
+
         file.company = str(file_info_dict['sigcheck_Company'])
         file.description = str(file_info_dict['sigcheck_Description'])
         file.product = str(file_info_dict['sigcheck_Product'])
@@ -88,22 +93,24 @@ def file_info(filepath, upload_id):
         file.counter_signer = str(file_info_dict['Counter Signers'])
     except:
         pass
-
-    file.pe_machine = file_info_dict['Machine']
-    file.pe_sectionNum = file_info_dict['NumberOfSections']
-    file.pe_timeDateStamp = file_info_dict['TimeDateStamp']
-    file.pe_characteristics = file_info_dict['Characteristics']
-    file.pe_entryPoint = file_info_dict['AddressOfEntryPoint']
-    file.pe_sections = str(file_info_dict['Section_info'])
-    file.pe_imports = str(file_info_dict['Import_directories'])
-    file.pe_exports = str(file_info_dict['Export_directories'])
+    try:
+        file.pe_machine = file_info_dict['Machine']
+        file.pe_sectionNum = file_info_dict['NumberOfSections']
+        file.pe_timeDateStamp = file_info_dict['TimeDateStamp']
+        file.pe_characteristics = file_info_dict['Characteristics']
+        file.pe_entryPoint = file_info_dict['AddressOfEntryPoint']
+        file.pe_sections = str(file_info_dict['Section_info'])
+        file.pe_imports = str(file_info_dict['Import_directories'])
+        file.pe_exports = str(file_info_dict['Export_directories'])
+    except:
+        pass
     # #file.printablestr_txt =
     # #file.byte_distribution =
     # #file.score =
     file.save()
 
     #File.objects.get(id=file_id).delete()
-
+    #return "signer index: {} ,counter signer index: {}".format(file_info_dict['s_start'],file_info_dict['cs_start'])
     return "analysis {} task finished".format(filepath.split('/')[-1])
     # return FileInfo.objects.get(upload_id=upload_id)
 
@@ -139,7 +146,7 @@ def byte_analysis(filepath):
 
     byte_analysis_dict = {
         #'printable_strs' : printable_str_list,
-        #'byte_summary' : byte_list,
+        'byte_summary' : byte_list,
         'entropy' : entropy,
         'file_sha1': sha1.hexdigest()
     }
@@ -196,13 +203,16 @@ def sigcheck(filepath):
     
     sigcheck_path = os.path.join(resourceDir,'sigcheck.exe')
     filepath = filepath.replace("\\", "//")
-
-    args = [sigcheck_path,'-i', '-l', '-nobanner',filepath]
+    sigcheck_dict={}
+    args = ["wine", "\mnt\security_rabbit\security_rabbit\media\exefiles\sigcheck.exe", '-i', '-l', '-nobanner', "\mnt\security_rabbit\security_rabbit\media//file_upload//"+filepath]
     pipe = subprocess.Popen(args, stdout=subprocess.PIPE)
+    
     sigcheck_output = pipe.communicate()[0]
     sigcheck_str = ""
 
     sigcheck_str = sigcheck_output.decode('utf-8',"replace")
+    #sigcheck_dict['process']=sigcheck_str
+    #sigcheck_dict['args']=args
     #print(sigcheck_str)
     sigcheck_str = sigcheck_str.replace('\r\n\t'+'  ', '\n<Certificate>')
     sigcheck_str = sigcheck_str.replace('\r\n\t\t', '\n<Certi Info>')
@@ -211,14 +221,15 @@ def sigcheck(filepath):
     sigcheck_str += '<end>'
     #print(sigcheck_str)
 
-    sigcheck_dict = {}
     
+    #sigcheck_dict['process']=sigcheck_str 
     for attr in re.findall('<attribute>.*',sigcheck_str):
         attr = attr.replace('<attribute>','')
         attribute_name, attribute_val = attr.split(":",1)
         sigcheck_dict["sigcheck_"+attribute_name] = attribute_val
     
     sigcheck_str_list = [line.replace('\n','').replace('\r','') for line in io.StringIO(sigcheck_str).readlines()]
+    #sigcheck_dict['sig_li']=sigcheck_str_list
     signers_dict = __signers(sigcheck_str_list)
 
     sigcheck_dict.update(signers_dict)
@@ -231,32 +242,59 @@ def sigcheck(filepath):
 def __signers(sigcheck_str_list):
     signer_list = []
     counter_signer_list = []
-    
+    signers_dict = {}
     try:
-        signer_start_index = []
-        counter_signer_start_index = []
-
+        signer_start_index = 0
+        counter_signer_start_index = 0
+        counter_signer = False
+        tmp = []
         for index, sigcheck_str in enumerate(sigcheck_str_list):
             if '<attribute>Signers:' in sigcheck_str:
-                signer_start_index.append(index)
+                signer_start_index = index
             elif '<attribute>Counter Signers' in sigcheck_str:
-                counter_signer_start_index.append(index)
+                counter_signer_start_index = index
+                counter_signer = True
+            elif '<Certificate>' in sigcheck_str:
+                if tmp != [] and counter_signer == False:
+                    signer_list.append(tmp)
+                    tmp = []
+                elif tmp != [] and counter_signer == True:
+                    counter_signer_list.append(tmp)
+                    tmp = []
+                tmp.append(sigcheck_str_list[index].split('<Certificate> ')[-1])
+            elif '<Certi Info>' in sigcheck_str:
+                tmp.append(sigcheck_str_list[index].split('<Certi Info>')[-1])
+                if index == len(sigcheck_str_list):
+                    counter_signer_list.append(tmp)
 
+        #signers_dict = {}
+        #signers_dict['s_start']=signer_start_index
+        #signers_dict['cs_start']=counter_signer_start_index
+        
+
+ 
         #print(signer_start_index)
         #print(counter_signer_start_index)
-        for i in range(signer_start_index[0],counter_signer_start_index[0]-1,9):
-            signer_list.append(sigcheck_str_list[i+1 : i+10])
-        for i in range(signer_start_index[1],counter_signer_start_index[1]-1,9):
-            signer_list.append(sigcheck_str_list[i+1 : i+10])
+        #for i in range(signer_start_index[0],counter_signer_start_index[0]-1,9):
+        #    signer_list.append(sigcheck_str_list[i+1 : i+10])
+        #for i in range(signer_start_index[1],counter_signer_start_index[1]-1,9):
+        #    signer_list.append(sigcheck_str_list[i+1 : i+10])
         
-        for i in range(counter_signer_start_index[0],signer_start_index[0],9):
-            if '<Certificate>' in sigcheck_str_list[i+1]:
-                counter_signer_list.append(sigcheck_str_list[i+1 : i+10])
-        for i in range(counter_signer_start_index[1],len(sigcheck_str_list),9):
-            if '<Certificate>' in sigcheck_str_list[i+1]:
-                counter_signer_list.append(sigcheck_str_list[i+1 : i+10])
+        #for i in range(counter_signer_start_index[0],signer_start_index[0],9):
+        #    if '<Certificate>' in sigcheck_str_list[i+1]:
+        #        counter_signer_list.append(sigcheck_str_list[i+1 : i+10])
+        #for i in range(counter_signer_start_index[1],len(sigcheck_str_list),9):
+        #    if '<Certificate>' in sigcheck_str_list[i+1]:
+        #        counter_signer_list.append(sigcheck_str_list[i+1 : i+10])
         #print(signer_list)
         #print(counter_signer_list)
+        #for i in range(len(signer_start_index)):
+        #    signer_list.append(sigcheck_str_list[signer_start_index[i]])
+        #    for j in range(8):
+        #        signer_list.append(sigcheck_str_list[i+j+1])
+        #for i in range(len(counter_signer_start_index)):
+        #    for j in range(9):
+        #        counter_signer_list.append(sigcheck_str_list[i+j])
 
     except ValueError:
         #print(ValueError)
@@ -265,17 +303,17 @@ def __signers(sigcheck_str_list):
         pass
         #print(IndexError)
 
-    signers_dict = {}
-    
-    for j in range(len(signer_list)):
-        signer_list[j][0] = signer_list[j][0].split('<Certificate> ')[-1]
-        for i in range(len(signer_list[j])-1):
-            signer_list[j][i+1] = signer_list[j][i+1].split('<Certi Info>')[-1]
+    #signers_dict = {}
+    #for j in range(len(signer_list)):
+    #    s = signer_list[j][0].split('<Certificate> ')[-1]
+    #    tmp_list[0] = s
+    #    for i in range(len(signer_list[j])-1):
+    #        tmp_list[i+1] = signer_list[j][i+1].split('<Certi Info>')[-1]
 
-    for j in range(len(counter_signer_list)):
-        counter_signer_list[j][0] = counter_signer_list[j][0].split('<Certificate> ')[-1]
-        for i in range(len(counter_signer_list[j])-1):
-            counter_signer_list[j][i+1] = counter_signer_list[j][i+1].split('<Certi Info>')[-1]
+    #for j in range(len(counter_signer_list)):
+    #    counter_signer_list[j][0] = counter_signer_list[j][0].split('<Certificate> ')[-1]
+    #    for i in range(len(counter_signer_list[j])-1):
+    #        counter_signer_list[j][i+1] = counter_signer_list[j][i+1].split('<Certi Info>')[-1]
 
     signers_dict['Signers'] = signer_list
     signers_dict['Counter Signers'] = counter_signer_list
@@ -295,9 +333,10 @@ def check_pack(pe_file):
         signatures = peutils.SignatureDatabase(data = sig_data)
 
     #matches = signatures.match(pe_file, ep_only = True)
+    matchall = []
     matchall = signatures.match_all(pe_file, ep_only = True)
-    if not matchall:
-        matchall = []
+    #if not matchall:
+    #    matchall = []
     return { 'pack' : matchall }
 
 @shared_task
