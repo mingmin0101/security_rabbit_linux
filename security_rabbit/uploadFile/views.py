@@ -15,19 +15,9 @@ import os
 import time
 import hashlib
 
-
 from rest_framework.decorators import api_view
 
 
-# https://kite.com/python/docs/django.db.models.Model.save
-
-
-# Save to DB
-# https://github.com/pandas-dev/pandas/issues/14553
-# https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_sql.html
-# https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rename.html
-
-# Create your views here.
 class FileUploadView(APIView):
     parser_class = (FileUploadParser,MultiPartParser,FormParser)
 

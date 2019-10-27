@@ -17,14 +17,46 @@ import io
 import re
 # from winmagic import magic
 
+import numpy as np
+import pandas as pd
+import Orange
+import pickle
+import csv
+from io import StringIO
+from collections import OrderedDict
+from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
 
 from django.conf import settings
 from uploadFile.models import FileInfo, File
 
 resourceDir = os.path.join(settings.MEDIA_ROOT,'exefiles')
 
-#celery = Celery('tasks', backend='rpc://', broker='pyamqp://localhost:5672')
+# orange
+def pandas_to_orange(df):
+    domain, attributes, metas = construct_domain(df)
+    orange_table = Orange.data.Table.from_numpy(domain = domain, X = df[attributes].values, Y = None, metas = df[metas].values, W = None)
+    return orange_table
 
+def construct_domain(df):
+    columns = OrderedDict(df.dtypes)
+    attributes = OrderedDict()
+    metas = OrderedDict()
+    for name, dtype in columns.items():
+
+        if issubclass(dtype.type, np.number):
+            if len(df[name].unique()) >= 13 or issubclass(dtype.type, np.inexact) or (df[name].max() > len(df[name].unique())):
+                attributes[name] = Orange.data.ContinuousVariable(name)
+            else:
+                df[name] = df[name].astype(str)
+                attributes[name] = Orange.data.DiscreteVariable(name, values = sorted(df[name].unique().tolist()))
+        else:
+            metas[name] = Orange.data.StringVariable(name)
+
+    domain = Orange.data.Domain(attributes = attributes.values(), metas = metas.values())
+
+    return domain, list(attributes.keys()), list(metas.keys())
+
+# ---------------------------------------------------
 @shared_task
 def file_info(filepath, upload_id):
     created = time.ctime(os.path.getctime(filepath))   # create time
@@ -49,6 +81,7 @@ def file_info(filepath, upload_id):
     byte_analysis_dict = byte_analysis(filepath)
     file_info_dict.update(byte_analysis_dict)
 
+      file = FileInfo()
     # PE_FILE ANALYSIS
     try:
         pe_file = pefile.PE(filepath, fast_load=True)
@@ -59,28 +92,33 @@ def file_info(filepath, upload_id):
         file_info_dict.update(check_pack_dict)
         file_info_dict.update(dll_import_analysis_dict)
         file_info_dict.update(pefile_infos_dict)
+        file.peutils_packed = str(file_info_dict['pack'])
+        file.entropy = file_info_dict['entropy']
+        file.pe_machine = file_info_dict['Machine']
+        file.pe_sectionNum = file_info_dict['NumberOfSections']
+        file.pe_timeDateStamp = file_info_dict['TimeDateStamp']
+        file.pe_characteristics = file_info_dict['Characteristics']
+        file.pe_entryPoint = file_info_dict['AddressOfEntryPoint']
+        file.pe_sections = str(file_info_dict['Section_info'])
+        file.pe_imports = str(file_info_dict['Import_directories'])
+        file.pe_exports = str(file_info_dict['Export_directories'])
     except:
         pass    
 
-    file = FileInfo()
+  
     file.upload_id = File.objects.get(id=upload_id)
     file.file_name = filepath.split('/')[-1]
     file.file_hash_sha1 = file_info_dict['file_sha1']
     file.file_size = os.stat(filepath).st_size
     #file.file_magic = str(magic.from_file(filepath)) 
     #file.file_state = win32api.GetFileAttributes(filepath)
-    
-    try:
-        file.peutils_packed = str(file_info_dict['pack'])
-        file.entropy = file_info_dict['entropy']
-    except:
-        pass
+
     file.create_time = str(time.ctime(os.path.getctime(filepath)))
     file.modified_time = str(time.ctime(os.path.getmtime(filepath)))
     file.accessed_time = str(time.ctime(os.path.getatime(filepath)))
+    
+    file.signature_verification = str(file_info_dict['sigcheck_Verified'])
     try:
-        file.signature_verification = str(file_info_dict['sigcheck_Verified'])
-
         file.company = str(file_info_dict['sigcheck_Company'])
         file.description = str(file_info_dict['sigcheck_Description'])
         file.product = str(file_info_dict['sigcheck_Product'])
@@ -93,30 +131,46 @@ def file_info(filepath, upload_id):
         file.counter_signer = str(file_info_dict['Counter Signers'])
     except:
         pass
-    try:
-        file.pe_machine = file_info_dict['Machine']
-        file.pe_sectionNum = file_info_dict['NumberOfSections']
-        file.pe_timeDateStamp = file_info_dict['TimeDateStamp']
-        file.pe_characteristics = file_info_dict['Characteristics']
-        file.pe_entryPoint = file_info_dict['AddressOfEntryPoint']
-        file.pe_sections = str(file_info_dict['Section_info'])
-        file.pe_imports = str(file_info_dict['Import_directories'])
-        file.pe_exports = str(file_info_dict['Export_directories'])
-    except:
-        pass
+
     # #file.printablestr_txt =
     # #file.byte_distribution =
-    # #file.score =
-    file.save()
+    
+    # 算分數
+    data_dict = {}
+    try:
+        data_dict['AddressOfEntryPoint']=file_info_dict['AddressOfEntryPoint']
+        data_dict['Characteristics']=file_info_dict['Characteristics']
+        data_dict['Machine']=file_info_dict['Machine']
+        data_dict['NumberOfSections']=file_info_dict['NumberOfSections']
+        data_dict['TimeDateStamp']=file_info_dict['TimeDateStamp']
+        data_dict['entropy']=file_info_dict['entropy']
+        
+        data_dict['file_size']=file_info_dict['file_size']
+        data_dict['exec_ability']=file_info_dict['exec_ability']
+        data_dict['network_ability']=file_info_dict['network_ability']
+        data_dict['rw_ability']=file_info_dict['rw_ability']
+        for i in range(len(file_info_dict['byte_summary'])):
+            data_dict[i]=file_info_dict['byte_summary'][i]
+    except:
+        pass
+    data_df = pd.DataFrame(data_dict,index=[0])
+    orange_dt = pandas_to_orange(data_df)
 
-    #File.objects.get(id=file_id).delete()
+    with open(os.path.join(settings.MEDIA_ROOT,'model',"tree.pkcls"), "rb") as f:   # tree.pkcls
+        model = pickle.load(f)
+
+    data = Orange.data.Table(orange_dt)  # 'test_data_bad.xlsx'
+    pred_ind = model(data)  # array of predicted target values (indices)
+    li = [model.domain.class_var.str_val(i) for i in pred_ind]  # convert to value names (strings)
+    prob = model(data, model.Probs)  # array of predicted probabilities
+
+    file.score = round(prob[0][1]*10)
+
+
     #return "signer index: {} ,counter signer index: {}".format(file_info_dict['s_start'],file_info_dict['cs_start'])
-    return "analysis {} task finished".format(filepath.split('/')[-1])
+    return "analysis {} task finished，score={}".format(filepath.split('/')[-1],str(prob[0][1]*10))
     # return FileInfo.objects.get(upload_id=upload_id)
 
-# @shared_task
-# def get_fileInfo(input_id):
-#     return FileInfoSerializer(FileInfo.objects.filter(upload_id=input_id), many=True)
 
 @shared_task
 def byte_analysis(filepath):
@@ -271,49 +325,12 @@ def __signers(sigcheck_str_list):
         #signers_dict['s_start']=signer_start_index
         #signers_dict['cs_start']=counter_signer_start_index
         
-
- 
-        #print(signer_start_index)
-        #print(counter_signer_start_index)
-        #for i in range(signer_start_index[0],counter_signer_start_index[0]-1,9):
-        #    signer_list.append(sigcheck_str_list[i+1 : i+10])
-        #for i in range(signer_start_index[1],counter_signer_start_index[1]-1,9):
-        #    signer_list.append(sigcheck_str_list[i+1 : i+10])
-        
-        #for i in range(counter_signer_start_index[0],signer_start_index[0],9):
-        #    if '<Certificate>' in sigcheck_str_list[i+1]:
-        #        counter_signer_list.append(sigcheck_str_list[i+1 : i+10])
-        #for i in range(counter_signer_start_index[1],len(sigcheck_str_list),9):
-        #    if '<Certificate>' in sigcheck_str_list[i+1]:
-        #        counter_signer_list.append(sigcheck_str_list[i+1 : i+10])
-        #print(signer_list)
-        #print(counter_signer_list)
-        #for i in range(len(signer_start_index)):
-        #    signer_list.append(sigcheck_str_list[signer_start_index[i]])
-        #    for j in range(8):
-        #        signer_list.append(sigcheck_str_list[i+j+1])
-        #for i in range(len(counter_signer_start_index)):
-        #    for j in range(9):
-        #        counter_signer_list.append(sigcheck_str_list[i+j])
-
     except ValueError:
         #print(ValueError)
         pass
     except IndexError:
         pass
         #print(IndexError)
-
-    #signers_dict = {}
-    #for j in range(len(signer_list)):
-    #    s = signer_list[j][0].split('<Certificate> ')[-1]
-    #    tmp_list[0] = s
-    #    for i in range(len(signer_list[j])-1):
-    #        tmp_list[i+1] = signer_list[j][i+1].split('<Certi Info>')[-1]
-
-    #for j in range(len(counter_signer_list)):
-    #    counter_signer_list[j][0] = counter_signer_list[j][0].split('<Certificate> ')[-1]
-    #    for i in range(len(counter_signer_list[j])-1):
-    #        counter_signer_list[j][i+1] = counter_signer_list[j][i+1].split('<Certi Info>')[-1]
 
     signers_dict['Signers'] = signer_list
     signers_dict['Counter Signers'] = counter_signer_list
