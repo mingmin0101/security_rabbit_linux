@@ -64,7 +64,7 @@ class FileInfo(models.Model):
     printablestr_txt = models.IntegerField(blank=True, null=True)   # 字串要不要先經過處理再存
     byte_distribution = models.TextField(blank=True)
 
-    score = models.IntegerField(default=0)
+    score = models.DecimalField(max_digits=3, decimal_places=1, default=0)
 
     def __str__(self):
         return str(self.file_name)

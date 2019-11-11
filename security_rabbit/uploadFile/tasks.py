@@ -81,7 +81,7 @@ def file_info(filepath, upload_id):
     byte_analysis_dict = byte_analysis(filepath)
     file_info_dict.update(byte_analysis_dict)
 
-      file = FileInfo()
+    file = FileInfo()
     # PE_FILE ANALYSIS
     try:
         pe_file = pefile.PE(filepath, fast_load=True)
@@ -116,9 +116,8 @@ def file_info(filepath, upload_id):
     file.create_time = str(time.ctime(os.path.getctime(filepath)))
     file.modified_time = str(time.ctime(os.path.getmtime(filepath)))
     file.accessed_time = str(time.ctime(os.path.getatime(filepath)))
-    
-    file.signature_verification = str(file_info_dict['sigcheck_Verified'])
     try:
+        file.signature_verification = str(file_info_dict['sigcheck_Verified'])
         file.company = str(file_info_dict['sigcheck_Company'])
         file.description = str(file_info_dict['sigcheck_Description'])
         file.product = str(file_info_dict['sigcheck_Product'])
@@ -164,11 +163,11 @@ def file_info(filepath, upload_id):
     li = [model.domain.class_var.str_val(i) for i in pred_ind]  # convert to value names (strings)
     prob = model(data, model.Probs)  # array of predicted probabilities
 
-    file.score = round(prob[0][1]*10)
+    file.score = round(prob[0][1]*100)/10
 
-
+    file.save()
     #return "signer index: {} ,counter signer index: {}".format(file_info_dict['s_start'],file_info_dict['cs_start'])
-    return "analysis {} task finished，score={}".format(filepath.split('/')[-1],str(prob[0][1]*10))
+    return "analysis {} task finished，score={}".format(filepath.split('/')[-1],str(prob[0][1]))
     # return FileInfo.objects.get(upload_id=upload_id)
 
 
@@ -258,7 +257,7 @@ def sigcheck(filepath):
     sigcheck_path = os.path.join(resourceDir,'sigcheck.exe')
     filepath = filepath.replace("\\", "//")
     sigcheck_dict={}
-    args = ["wine", "\mnt\security_rabbit\security_rabbit\media\exefiles\sigcheck.exe", '-i', '-l', '-nobanner', "\mnt\security_rabbit\security_rabbit\media//file_upload//"+filepath]
+    args = ["wine", "\mnt\security_rabbit_linux\security_rabbit\media\exefiles\sigcheck64.exe", '-i', '-l', '-nobanner', "\mnt\security_rabbit_linux\security_rabbit\media//file_upload//"+filepath]
     pipe = subprocess.Popen(args, stdout=subprocess.PIPE)
     
     sigcheck_output = pipe.communicate()[0]

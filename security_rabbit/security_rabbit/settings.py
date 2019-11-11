@@ -46,13 +46,7 @@ INSTALLED_APPS = [
     'djoser',   # https://djoser.readthedocs.io/en/latest/getting_started.html
     'rest_framework',
     'rest_framework.authtoken',   # login, logout
-    'corsheaders',  # Cross Origin Resource Sharing (for frontend)
-    
-    'sslserver',
-
-    #'rest_auth',
-    #'django.contrib.sites',  # 不知道是誰要用的
-    
+    'corsheaders',  # Cross Origin Resource Sharing (for fronted
 ]
 
 #SITE_ID = 1 # 不知道是誰要用的
@@ -78,7 +72,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    #'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
 ]
 
@@ -163,9 +157,10 @@ MEDIA_URL=''
 CELERY_BROKER_URL = 'amqp://celery:password123@140.119.19.21:5672/my_vhost'
 
 # https
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-DECURE_SSL_REDIRECT = True
-ESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+#SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+#SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+#CSRF_COOKIE_DOMAIN = "140.119.19.21"
 
 
