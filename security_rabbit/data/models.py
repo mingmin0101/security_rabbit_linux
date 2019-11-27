@@ -4,20 +4,6 @@ from users.models import User
 class Computer(models.Model):
     """
     listing all the computers.
-    
-    deviceUuid  ==>  wmic csproduct get UUID
-    deviceName  ==>  platform.uname()   node
-    userName    ==>  os.getlogin()
-    ipAddr      ==>  wmi Win32_NetworkAdapterConfiguration
-    macAddr     ==>  wmi Win32_NetworkAdapterConfiguration
-    os          ==>  platform.uname()   system + release + version
-    processor   ==>  platform.uname()   processor
-    cpu         ==>  platform.uname()   machine
-    memoryCapacity    ==>  wmi Win32_PhysicalMemory
-
-    registry_StartupCommand    ==>  wmi Win32_StartupCommand
-
-    latest_scan_score    ==>  user網頁直接撈最新的ScanningRecord分數
     """
     administrator = models.ForeignKey(User, on_delete=models.CASCADE)
     deviceUuid = models.CharField(max_length=50)
@@ -81,46 +67,50 @@ class FileInfo(models.Model):
     file_path = models.TextField(blank=True)
     file_hash_sha1 = models.CharField(max_length=40)
     file_size = models.IntegerField(blank=True, null=True)
-    file_magic = models.CharField(max_length=100,blank=True, null=True)
+    # file_magic = models.CharField(max_length=100,blank=True, null=True)
     file_state = models.IntegerField(blank=True, null=True)
     peutils_packed = models.CharField(max_length=200, blank=True)
     entropy = models.DecimalField(max_digits=5, decimal_places=4, blank=True, null=True)
 
-    create_time = models.DateTimeField(blank=True)
-    modified_time = models.DateTimeField(blank=True)
-    accessed_time = models.DateTimeField(blank=True)
+    create_time = models.CharField(max_length=30, blank=True, null=True)
+    modified_time = models.CharField(max_length=30, blank=True, null=True)
+    accessed_time = models.CharField(max_length=30, blank=True, null=True)
 
-    company = models.CharField(max_length=50, blank=True)
-    description = models.CharField(max_length=60, blank=True)
-    product = models.CharField(max_length=50, blank=True)
-    prod_version = models.CharField(max_length=40, blank=True)
-    file_version = models.CharField(max_length=40, blank=True)
-    machine_type = models.CharField(max_length=20, blank=True)
+    company = models.CharField(max_length=50, blank=True, null=True)
+    description = models.CharField(max_length=60, blank=True, null=True)
+    product = models.CharField(max_length=50, blank=True, null=True)
+    prod_version = models.CharField(max_length=40, blank=True, null=True)
+    file_version = models.CharField(max_length=40, blank=True, null=True)
+    machine_type = models.CharField(max_length=20, blank=True, null=True)
 
-    signature_verification = models.CharField(max_length=100)
-    link_date = models.DateTimeField(blank=True)
-    signing_date = models.DateTimeField(blank=True)
+    signature_verification = models.CharField(max_length=100, null=True)
+    link_date = models.CharField(max_length=30, blank=True, null=True)
+    signing_date = models.CharField(max_length=30, blank=True, null=True)
 
-    signer = models.TextField(blank=True)
-    counter_signer = models.TextField(blank=True)
+    signer = models.TextField(blank=True, default=[])
+    counter_signer = models.TextField(blank=True, default=[])
 
     pe_machine = models.IntegerField(blank=True, null=True)
     pe_sectionNum = models.IntegerField(blank=True, null=True)
-    pe_timeDateStamp = models.DateTimeField(blank=True)
+    pe_timeDateStamp = models.IntegerField(blank=True, null=True)
     pe_characteristics = models.IntegerField(blank=True, null=True)
     pe_entryPoint = models.IntegerField(blank=True, null=True)
 
-    pe_sections = models.TextField(blank=True)
+    pe_sections = models.TextField(blank=True, default=[])
 
-    pe_imports = models.TextField(blank=True)
+    pe_imports = models.TextField(blank=True, default={})
 
-    pe_exports = models.TextField(blank=True)
+    pe_exports = models.TextField(blank=True, default=[])
     
-    #pefile_txt = models.IntegerField(blank=True, null=True)
-    printablestr_txt = models.IntegerField(blank=True, null=True)   # 字串要不要先經過處理再存
-    byte_distribution = models.TextField(blank=True)
+    network_ability = models.BooleanField()
+    rw_ability = models.BooleanField()
+    exec_ability = models.BooleanField()
+    
+    # pefile_txt = models.IntegerField(blank=True, null=True)
+    # printablestr_txt = models.IntegerField(blank=True, null=True)   # 字串要不要先經過處理再存
+    # byte_distribution = models.TextField(blank=True)
 
-    score = models.IntegerField(default=0)
+    score = models.DecimalField(max_digits=3, decimal_places=1, default=0)
 
     scanningRecord_id = models.ForeignKey(ScanningRecord, on_delete=models.CASCADE)
 

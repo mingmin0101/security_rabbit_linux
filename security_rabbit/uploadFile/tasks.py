@@ -155,7 +155,7 @@ def file_info(filepath, upload_id):
     data_df = pd.DataFrame(data_dict,index=[0])
     orange_dt = pandas_to_orange(data_df)
 
-    with open(os.path.join(settings.MEDIA_ROOT,'model',"tree.pkcls"), "rb") as f:   # tree.pkcls
+    with open(os.path.join(settings.MEDIA_ROOT,'model',"nerual network.pkcls"), "rb") as f:   # tree.pkcls
         model = pickle.load(f)
 
     data = Orange.data.Table(orange_dt)  # 'test_data_bad.xlsx'

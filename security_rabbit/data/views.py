@@ -12,6 +12,7 @@ from django.http import HttpResponse
 from .models import Documents
 from .forms import DocumentForm
 import os
+import zipfile
 
 from data.tasks import calculate_score
 def process_uploaded_file(request):
@@ -91,49 +92,45 @@ def FileInfoView(request):
         return Response(status = status.HTTP_404_NOT_FOUND)
 
 def download_scanfile(request):  # , userid
-    file_path = os.path.join(settings.MEDIA_ROOT,"exefiles","Test.txt")
+    file_path = os.path.join(settings.MEDIA_ROOT,"exefiles","scanGUI.py")
     with open(file_path,'rb') as f:
         file = File (f)
         response = HttpResponse(file.chunks(), content_type='APPLICATION/OCTET-STREAM')
-        response['Content-Disposition'] = 'attachment; filename=Test.txt'
+        response['Content-Disposition'] = 'attachment; filename=scanGUI.py'
         response['Content-Length'] = os.path.getsize(file_path)
     return response
 
 ###############################
 
-def uploadxml(request):
+def uploadjson(request, userid, deviceuuid):
     if (request.POST):
         form = DocumentForm(request.POST,request.FILES)
         if form.is_valid:
             new_doc = Documents(file = request.FILES['docfile'])
             new_doc.save()
+
+            # 呼叫celery做事
+            calculate_score.delay(userid, deviceuuid)
     else:
         form = DocumentForm()
     return render(request,'uploadxml.html',{'form':form})
 
-# def downloadpy(request,filename):
-#     file_path = os.path.join(settings.MEDIA_ROOT,'exefiles',filename+'.py')
-#     with open(file_path,'rb') as f:
-#         file = File (f)
-#         response = HttpResponse(file.chunks(),content_type='APPLICATION/OCTET-STREAM')
-#         response['Content-Disposition'] = 'attachment; filename=' + filename+'.py'
-#         response['Content-Length'] = os.path.getsize(file_path)
-#     return response
+def downloadzip(request,filename):
+    sigcheck_name = 'sigcheck.exe'
+    main_name = '__main__.exe'
+    userdb_name = 'userdb_filter.txt'
+    sigcheck_path = os.path.join(settings.MEDIA_ROOT,'exefiles','sigcheck64.exe')
+    main_path = os.path.join(settings.MEDIA_ROOT,'exefiles','__main__.exe')
+    userdb_path = os.path.join(settings.MEDIA_ROOT,'exefiles','userdb_filter.txt')
+    srzip_name = 'srcore.zip'
+    with zipfile.ZipFile(srzip_name,'w') as z_file:
+        z_file.write(sigcheck_path, 'sigcheck.exe')
+        z_file.write(main_path, '__main__.exe')
+        z_file.write(userdb_path, 'userdb_filter.txt')
+    
+    with open(srzip_name, 'rb') as z_file:
+        data = z_file.read()
+        response = HttpResponse(data, content_type='application/zip')
+        response['Content-Disposition'] = 'attachment;filename='+ srzip_name
 
-def downloadexe(request,filename):
-    file_path = os.path.join(settings.MEDIA_ROOT,'exefiles',filename+'.exe')
-    with open(file_path,'rb') as f:
-        file = File (f)
-        response = HttpResponse(file.chunks(),content_type='APPLICATION/OCTET-STREAM')
-        response['Content-Disposition'] = 'attachment; filename=' + filename+'.exe'
-        response['Content-Length'] = os.path.getsize(file_path)
     return response
-
-# def downloadtxt(request,filename):
-#     file_path = os.path.join(settings.MEDIA_ROOT,'exefiles',filename+'.txt')
-#     with open(file_path,'rb') as f:
-#         file = File (f)
-#         response = HttpResponse(file.chunks(),content_type='APPLICATION/OCTET-STREAM')
-#         response['Content-Disposition'] = 'attachment; filename=' + filename+'.txt'
-#         response['Content-Length'] = os.path.getsize(file_path)
-#     return response

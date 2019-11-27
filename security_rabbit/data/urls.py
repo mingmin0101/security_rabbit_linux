@@ -9,9 +9,7 @@ urlpatterns = [
 
     path('download_scanfile', views.download_scanfile),
 
-    path('uploadxml/',views.uploadxml),
-    path('downloadexe/<slug:filename>',views.downloadexe),
-    #path('downloadpy/<slug:filename>',views.downloadpy),
-    #path('downloadtxt/<slug:filename>',views.downloadtxt),
+    path('uploadjson/<int:userid>/<slug:deviceuuid>',views.uploadjson),
+    path('downloadzip/<slug:filename>',views.downloadzip),
 
 ]
