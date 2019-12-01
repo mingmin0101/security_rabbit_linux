@@ -9,13 +9,17 @@ import peutils
 import subprocess
 import platform
 import time
-#import win32api
-import string
-import math
-import hashlib
+# import win32api
+# import string
+# import math
+# import hashlib
 import io
 import re
 # from winmagic import magic
+
+from hashlib import sha1 as hashlib_sha1
+from string import printable as string_printable
+from math import log as math_log
 
 import numpy as np
 import pandas as pd
@@ -171,85 +175,126 @@ def file_info(filepath, upload_id):
     # return FileInfo.objects.get(upload_id=upload_id)
 
 
+# @shared_task
+# def byte_analysis(filepath):
+#     chunk_size = 8192
+#     #printable_chars = set(bytes(string.printable,'ascii'))
+#     printable_str_list = []
+#     byte_list = [0] * 256
+#     sha1 = hashlib.sha1()
+#     byte_dic = {}
+
+#     with open(filepath,'rb') as f:
+#         while True:
+#             chunk = f.read(chunk_size)
+#             if not chunk:
+#                 break
+            
+#             for byte in chunk:
+#                 byte_list[byte] +=1
+#             #__one_gram_byte_summary(chunk, byte_list)
+#             #__byte_printable(chunk, printable_chars, printable_str_list)
+#             sha1.update(chunk)
+    
+#     entropy = __entropy(byte_list)
+    
+#     for i in range(len(byte_list)):
+#         byte_dic[i] = byte_list[i]
+
+#     byte_analysis_dict = {
+#         #'printable_strs' : printable_str_list,
+#         'byte_summary' : byte_list,
+#         'entropy' : entropy,
+#         'file_sha1': sha1.hexdigest()
+#     }
+#     byte_analysis_dict.update(byte_dic)
+
+#     return byte_analysis_dict
+
+# @shared_task
+# def file_hash(filepath):
+#     chunk_size = 8192
+#     sha1 = hashlib.sha1()
+
+#     with open(filepath,'rb') as f:
+#         while True:
+#             chunk = f.read(chunk_size)
+#             if not chunk:
+#                 break        
+#             sha1.update(chunk)
+
+#     return sha1.hexdigest()
+
+# @shared_task
+# def __one_gram_byte_summary(chunk,byteList):
+#     for byte in chunk:
+#         byteList[byte] +=1
+#     return byteList
+
+# @shared_task       
+# def __entropy(byteList):
+#     entropy = 0
+#     total = sum(byteList)
+#     for item in byteList:
+#         if item != 0 :
+#             freq = item / total
+#             entropy = entropy + freq * math.log(freq, 2)
+#     entropy *= -1
+#     return entropy
+
 @shared_task
 def byte_analysis(filepath):
-    chunk_size = 8192
-    #printable_chars = set(bytes(string.printable,'ascii'))
-    printable_str_list = []
-    byte_list = [0] * 256
-    sha1 = hashlib.sha1()
-    byte_dic = {}
-
     with open(filepath,'rb') as f:
-        while True:
-            chunk = f.read(chunk_size)
-            if not chunk:
-                break
-            
-            for byte in chunk:
-                byte_list[byte] +=1
-            #__one_gram_byte_summary(chunk, byte_list)
-            #__byte_printable(chunk, printable_chars, printable_str_list)
-            sha1.update(chunk)
+        filebuffer = f.read()
+        one_gram_dict = one_gram_byte_analysis(filebuffer)
+        printable_strs = byte_printable(filebuffer)
+    sha1 = hashlib_sha1()
+    sha1.update(filebuffer)
+    entropy = calc_entropy(one_gram_dict)
     
-    entropy = __entropy(byte_list)
-    
-    for i in range(len(byte_list)):
-        byte_dic[i] = byte_list[i]
-
     byte_analysis_dict = {
-        #'printable_strs' : printable_str_list,
-        'byte_summary' : byte_list,
+        'printable_strs' : printable_strs,
         'entropy' : entropy,
         'file_sha1': sha1.hexdigest()
     }
-    byte_analysis_dict.update(byte_dic)
+    byte_analysis_dict.update(one_gram_dict)
 
     return byte_analysis_dict
 
-@shared_task
-def file_hash(filepath):
-    chunk_size = 8192
-    sha1 = hashlib.sha1()
+def one_gram_byte_analysis(filebuffer):
+    one_gram_byte_dict = {}
+    for i in range(256):
+        one_gram_byte_dict[hex(i)] = 0
+    for byte in filebuffer:
+        one_gram_byte_dict[hex(byte)] += 1
+    
+    return one_gram_byte_dict
 
-    with open(filepath,'rb') as f:
-        while True:
-            chunk = f.read(chunk_size)
-            if not chunk:
-                break        
-            sha1.update(chunk)
+def byte_printable(filebuffer):
+    char_len_threshhold = 3
+    printable_str_list = []
+    printable_chars = set(bytes(string_printable,'ascii'))
+    temp_bytes = b""
+    for byte in filebuffer:
+        if byte in printable_chars:
+            temp_bytes += bytes([byte])
+        
+        elif not temp_bytes == b"\x00" and len(temp_bytes) > char_len_threshhold:
+            printable_str_list.append(temp_bytes.decode("ascii"))
+            temp_bytes = b""
+        else:
+            temp_bytes = b""
+    return printable_str_list
 
-    return sha1.hexdigest()
-
-@shared_task
-def __one_gram_byte_summary(chunk,byteList):
-    for byte in chunk:
-        byteList[byte] +=1
-    return byteList
-
-@shared_task       
-def __entropy(byteList):
+def calc_entropy(byte_dict):
     entropy = 0
-    total = sum(byteList)
-    for item in byteList:
-        if item != 0 :
-            freq = item / total
-            entropy = entropy + freq * math.log(freq, 2)
+    total = sum(byte_dict.values())
+    for key in byte_dict:
+        if byte_dict[key] != 0 :
+            freq = byte_dict[key] / total
+            entropy = entropy + freq * math_log(freq, 2)
     entropy *= -1
     return entropy
-
-# def __byte_printable(chunk,printable_chars,printable_str_list):
-#     temp_bytes = b""
-#     for byte in chunk:
-#         if byte in printable_chars:
-#             temp_bytes += bytes([byte])
-        
-#         elif not temp_bytes == b"\x00" and len(temp_bytes) > 2:
-#             printable_str_list.append(temp_bytes.decode("ascii"))
-#             temp_bytes = b""
-#         else:
-#             temp_bytes = b""
-#     return printable_str_list
     
 @shared_task
 def sigcheck(filepath):
