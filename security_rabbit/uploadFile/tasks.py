@@ -159,7 +159,7 @@ def file_info(filepath, upload_id):
     data_df = pd.DataFrame(data_dict,index=[0])
     orange_dt = pandas_to_orange(data_df)
 
-    with open(os.path.join(settings.MEDIA_ROOT,'model',"nerual network.pkcls"), "rb") as f:   # tree.pkcls
+    with open(os.path.join(settings.MEDIA_ROOT,'model',"tree.pkcls"), "rb") as f:   # tree.pkcls
         model = pickle.load(f)
 
     data = Orange.data.Table(orange_dt)  # 'test_data_bad.xlsx'
@@ -170,6 +170,8 @@ def file_info(filepath, upload_id):
     file.score = round(prob[0][1]*100)/10
 
     file.save()
+    
+    os.remove(filepath)
     #return "signer index: {} ,counter signer index: {}".format(file_info_dict['s_start'],file_info_dict['cs_start'])
     return "analysis {} task finished，score={}".format(filepath.split('/')[-1],str(prob[0][1]))
     # return FileInfo.objects.get(upload_id=upload_id)
@@ -211,19 +213,17 @@ def file_info(filepath, upload_id):
 
 #     return byte_analysis_dict
 
-# @shared_task
-# def file_hash(filepath):
-#     chunk_size = 8192
-#     sha1 = hashlib.sha1()
-
-#     with open(filepath,'rb') as f:
-#         while True:
-#             chunk = f.read(chunk_size)
-#             if not chunk:
-#                 break        
-#             sha1.update(chunk)
-
-#     return sha1.hexdigest()
+@shared_task
+def file_hash(filepath):
+    chunk_size = 8192
+    sha1 = hashlib.sha1()
+    with open(filepath,'rb') as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break        
+            sha1.update(chunk)
+    return sha1.hexdigest()
 
 # @shared_task
 # def __one_gram_byte_summary(chunk,byteList):
@@ -261,6 +261,7 @@ def byte_analysis(filepath):
 
     return byte_analysis_dict
 
+@shared_task
 def one_gram_byte_analysis(filebuffer):
     one_gram_byte_dict = {}
     for i in range(256):
@@ -270,6 +271,7 @@ def one_gram_byte_analysis(filebuffer):
     
     return one_gram_byte_dict
 
+@shared_task
 def byte_printable(filebuffer):
     char_len_threshhold = 3
     printable_str_list = []
@@ -286,6 +288,7 @@ def byte_printable(filebuffer):
             temp_bytes = b""
     return printable_str_list
 
+@shared_task
 def calc_entropy(byte_dict):
     entropy = 0
     total = sum(byte_dict.values())
@@ -302,7 +305,7 @@ def sigcheck(filepath):
     sigcheck_path = os.path.join(resourceDir,'sigcheck.exe')
     filepath = filepath.replace("\\", "//")
     sigcheck_dict={}
-    args = ["wine", "\mnt\security_rabbit_linux\security_rabbit\media\exefiles\sigcheck64.exe", '-i', '-l', '-nobanner', "\mnt\security_rabbit_linux\security_rabbit\media//file_upload//"+filepath]
+    args = ["wine", "\mnt\server\security_rabbit_linux\security_rabbit\media\exefiles\sigcheck64.exe", '-i', '-l', '-nobanner', "\mnt\server\security_rabbit_linux\security_rabbit\media//file_upload//"+filepath]
     pipe = subprocess.Popen(args, stdout=subprocess.PIPE)
     
     sigcheck_output = pipe.communicate()[0]
@@ -396,8 +399,8 @@ def check_pack(pe_file):
     #matches = signatures.match(pe_file, ep_only = True)
     matchall = []
     matchall = signatures.match_all(pe_file, ep_only = True)
-    #if not matchall:
-    #    matchall = []
+    if not matchall:
+        matchall = []
     return { 'pack' : matchall }
 
 @shared_task

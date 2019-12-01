@@ -66,7 +66,7 @@ def FileResultView(request, hashValue, idValue):
     try:
         file_serializer = FileInfoSerializer(FileInfo.objects.filter(file_hash_sha1=hashValue).filter(upload_id=idValue), many=True)   # 
         retrieve_data = file_serializer.data
-        File.objects.get(id=idValue).delete()
+        # File.objects.get(id=idValue).delete()
         return Response(retrieve_data, status=status.HTTP_200_OK)
 
     except FileInfo.DoesNotExist:
