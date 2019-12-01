@@ -18,7 +18,7 @@ from Orange.data import Table, Domain, ContinuousVariable, DiscreteVariable
 
 import datetime
 import json
-from sqlalchemy import create_engine
+#from sqlalchemy import create_engine
 
 resourceDir = os.path.join(settings.MEDIA_ROOT,"documents")
 
@@ -78,15 +78,15 @@ def calculate_score(userid, deviceuuid):
     file_df_filter = file_df.copy()
     #file_df_filter = file_df.filter(["score","AddressOfEntryPoint", "Characteristics", "signers", "counter_signers", "Export_directories", "Import_directories", "Machine", "NumberOfSections", "Section_info", "TimeDateStamp", "created", "entropy", "exec_ability", "exec_ability_dic", "file_attribute", "file_name", "file_sha1", "file_size", "last_accessed", "last_modified", "network_ability", "network_ability_dic", "pack", "rw_ability", "rw_ability_dic", "sigcheck_Company", "sigcheck_Description", "sigcheck_File version", "sigcheck_Link date", "sigcheck_MachineType", "sigcheck_Prod version", "sigcheck_Product", "sigcheck_Verified"], axis=1)
     #"signers",
-    calculate_end_time = datetime.datetime.now()
+    calculate_end_time = str(datetime.datetime.now())
     
     # 存Computer電腦資訊  如果沒有全部資訊都有會跑錯!
-    if Computer.objects.filter(administrator=User.objects.get(id=userid)).filter(deviceUuid=deviceuuid).exists():
+    if (Computer.objects.filter(administrator=User.objects.get(id=userid)).filter(deviceUuid=deviceuuid)):
         # computer = Computer.objects.filter(administrator=User.objects.get(id=userid)).filter(deviceUuid=deviceuuid)
         # computer.update(deviceName=host_df["deviceName"],userName=host_df["userName"],ipAddr=host_df["ipAddr"],macAddr=host_df["macAddr"],os=host_df["os"],processor=host_df["processor"],cpu=host_df["cpu"],memoryCapacity=host_df["memoryCapacity"],registry_StartupCommand=host_df["registry_list"],latest_scan_score=int(round(mean(prob_li))))
         Computer.objects.filter(administrator=User.objects.get(id=userid)).filter(deviceUuid=deviceuuid).update(latest_scan_score=int(round(np.mean(prob_li))))
     else:
-        Computer.objects.create(administrator=User.objects.get(id=userid),deviceUuid=deviceuuid,deviceName=host_df["deviceName"],userName=host_df["userName"],ipAddr=host_df["ipAddr"],macAddr=host_df["macAddr"],os=host_df["os"],processor=host_df["processor"],cpu=host_df["cpu"],memoryCapacity=host_df["memoryCapacity"],registry_StartupCommand=host_df["registry_list"],latest_scan_score=int(round(np.mean(prob_li))))
+        Computer.objects.create(administrator=User.objects.get(id=userid),deviceUuid=deviceuuid,deviceName=host_df["deviceName"],userName=host_df["userName"],macAddr=host_df["MAC"],os=host_df["os"],processor=host_df["processor"],cpu=host_df["cpu"],memoryCapacity=host_df["memoryCapacity"],registry_StartupCommand=host_df["registry_list"],latest_scan_score=int(round(np.mean(prob_li))))
 
     # 存scanRecord掃描紀錄資訊   掃描選項待討論!
     if(meta_df['scan_type'][0] == "0"): 
@@ -122,14 +122,14 @@ def calculate_score(userid, deviceuuid):
     file_df_filter.file_sha1 = file_df_filter.file_sha1.astype(str)
 
     # 存fileinfo檔案掃描紀錄
-    file_df_filter["scanningRecord_id"] = ScanningRecord.objects.filter(computer=Computer.objects.filter(administrator=User.objects.get(id=userid)).get(deviceUuid=deviceuuid)).latest("start_time")
+    file_df_filter["scanningRecord_id"] = ScanningRecord.objects.filter(computer=Computer.objects.filter(administrator=User.objects.get(id=userid)).get(deviceUuid=deviceuuid)).get(start_time=str(json_dict["metainfo"]["start_time"]))#latest("start_time")
     #file_df_filter.rename(columns={"signers":"signer", "counter_signers":"counter_signer","file_sha1":"file_hash_sha1","Machine":"pe_machine","NumberOfSections":"pe_sectionNum","TimeDateStamp":"pe_timeDateStamp ","Characteristics":"pe_characteristics","AddressOfEntryPoint":"pe_entryPoint","Section_info":"pe_sections","Import_directories":"pe_imports","Export_directories":"pe_exports","pack":"peutils_packed","file_name":"file_path","created":"create_time","last_modified":"modified_time","last_accessed":"accessed_time","sigcheck_Verified":"signature_verification","sigcheck_Company":"company","sigcheck_Description":"description","sigcheck_File version":"file_version","sigcheck_Link date":"link_date","sigcheck_MachineType":"machine_type","sigcheck_Prod version":"prod_version","sigcheck_Product":"product"}, inplace=True)
 
     # print(FileInfo._meta.get_fields())
     saveData(file_df_filter)
     
     # 刪除上傳的json檔
-    # os.remove(filepath)
+    os.remove(filepath)
 
     return "analysis task finished!"
 
@@ -158,6 +158,7 @@ def saveData(df):
             file_hash_sha1 = record['file_sha1'],
             file_size = record['file_size'],
             
+            file_state = 32,
             peutils_packed = record['pack'],
             entropy = record['entropy'],
             

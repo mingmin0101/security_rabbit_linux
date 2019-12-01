@@ -48,8 +48,8 @@ class ScanningRecord(models.Model):
     """each computer has a scanning_history table"""
     scan_id = models.AutoField(primary_key=True) 
     
-    start_time = models.DateTimeField()
-    end_time = models.DateTimeField()
+    start_time = models.CharField(max_length=30)
+    end_time = models.CharField(max_length=30)
     normal_option = models.BooleanField()
     advance_option = models.BooleanField()
     customized_option = models.BooleanField()
