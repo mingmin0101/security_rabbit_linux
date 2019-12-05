@@ -19,13 +19,13 @@ class Computer(models.Model):
     memoryCapacity = models.CharField(max_length=10)
     
     registry_StartupCommand = models.TextField(blank=True)
-    latest_scan_score = models.IntegerField(default=0)
-
+    #latest_scan_score = models.IntegerField(default=0)
+    latest_scan_score = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
     def score(self):
         '''Returns the computer's score .'''
-        if self.latest_scan_score > 7:
+        if self.latest_scan_score > 7.0:
             return "Dangerous"
-        elif self.latest_scan_score > 4:
+        elif self.latest_scan_score > 4.0:
             return "Warning"
         else:
             return "Safe"
@@ -53,8 +53,8 @@ class ScanningRecord(models.Model):
     normal_option = models.BooleanField()
     advance_option = models.BooleanField()
     customized_option = models.BooleanField()
-    score = models.IntegerField(default=0)
-
+    # score = models.IntegerField(default=0)
+    score = models.DecimalField(max_digits=3,decimal_places=1, default=0.0) 
     computer = models.ForeignKey(Computer, on_delete=models.CASCADE)#資料表的關聯性  
     
 
@@ -110,7 +110,7 @@ class FileInfo(models.Model):
     # printablestr_txt = models.IntegerField(blank=True, null=True)   # 字串要不要先經過處理再存
     # byte_distribution = models.TextField(blank=True)
 
-    score = models.DecimalField(max_digits=3, decimal_places=1, default=0)
+    score = models.DecimalField(max_digits=3, decimal_places=1, default=0.0)
 
     scanningRecord_id = models.ForeignKey(ScanningRecord, on_delete=models.CASCADE)
 

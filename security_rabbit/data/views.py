@@ -92,11 +92,11 @@ def FileInfoView(request):
         return Response(status = status.HTTP_404_NOT_FOUND)
 
 def download_scanfile(request):  # , userid
-    file_path = os.path.join(settings.MEDIA_ROOT,"exefiles","scanGUI.py")
+    file_path = os.path.join(settings.MEDIA_ROOT,"exefiles","scanGUI.exe")
     with open(file_path,'rb') as f:
         file = File (f)
         response = HttpResponse(file.chunks(), content_type='APPLICATION/OCTET-STREAM')
-        response['Content-Disposition'] = 'attachment; filename=scanGUI.py'
+        response['Content-Disposition'] = 'attachment; filename=scanGUI.exe'
         response['Content-Length'] = os.path.getsize(file_path)
     return response
 
