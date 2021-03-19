@@ -1,7 +1,7 @@
 Django==2.1
 djoser==2.0.1
 celery==4.3.0
-djangorestframework==3.10.1
+djangorestframework==3.11.2
 django-cors-headers==3.0.2
 pefile
 Faker==2.0.1
